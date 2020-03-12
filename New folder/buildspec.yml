@@ -1,0 +1,54 @@
+version: 0.2
+
+env:
+  variables:
+    S3_BUCKET: 'ecs-fargate-cicd'
+    ECR_REPOSITORY_URI: '397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag'
+phases:
+  install:
+    runtime-versions:
+      # nodejs: 10
+      docker: 18
+      java: openjdk8
+    commands:
+            - export MAVEN_USER_HOME=`pwd`/.maven
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - $(aws ecr get-login --no-include-email --region ap-southeast-1)
+      - REPOSITORY_URI=397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag
+      - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - $(aws ecr get-login --no-include-email --region ap-southeast-1)
+      - npm install -g generator-jhipster-docker
+      - mvn test
+      #- mkdir ~/.jhipster
+      #- docker build -t $REPOSITORY_URI:latest .
+      #- docker tag $REPOSITORY_URI:latest 
+    #  - mvn org.apache.maven.plugins:maven-compiler-plugin:2.0.2:compile
+    #  - mvn compiler:compile
+
+      - docker build --build-arg build_without="development test" --build-arg rails_env="development" -t $REPOSITORY_URI:latest .
+      - docker container run --name user-mgmt-app -v ~/latest:/src/main/docker/app -v ~/home/jhipster/ -p 8080:8080 -d -t 397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag
+      #- ./mvnw -Pprod package verify jib:dockerBuild --offline
+     # - ./mvnw package -Pdev  jib:dockerBuild 
+      #- docker build -t $REPOSITORY_URI:latest .
+      #- mvn package -Pdocker
+      - docker container ps
+      - ls -l
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:latest
+      - mvn package
+      - printf '{"ImageURI":"%s"}' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+  type: Json
+  files:
+    - taskdef.json
+    - imagedefinitions.json

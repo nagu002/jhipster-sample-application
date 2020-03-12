@@ -1,0 +1,65 @@
+version: 0.2
+
+env:
+  variables:
+    S3_BUCKET: 'ecs-fargate-cicd'
+    ECR_REPOSITORY_URI: '397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag'
+phases:
+  install:
+    runtime-versions:
+      # nodejs: 10
+      docker: 18
+      java: openjdk8
+    commands:
+      - export MAVEN_USER_HOME=`pwd`/.maven
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - $(aws ecr get-login --no-include-email --region ap-southeast-1)
+      - REPOSITORY_URI=397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag
+      - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
+  build:
+    commands:
+      - echo Logging in to Amazon ECR....
+      - $(aws ecr get-login --no-include-email --region ap-southeast-1)
+      - docker-compose up -d
+    #  - mkdir ~/.npm-global
+     # - npm config set prefix '~/.npm-global'
+      #- export PATH=~/.npm-global/bin:$PATH
+      #-  source ~/.profile
+
+    #  - docker pull nginx
+
+    #  - mvn test
+    #  - mkdir ~/.jhipster
+     # - npm install -g generator-jhipster-docker
+      #- docker build -t $REPOSITORY_URI:latest .
+      #- docker tag $REPOSITORY_URI:latest
+      #- mvn org.apache.maven.plugins:maven-compiler-plugin:2.0.2:compile
+      #- mvn compiler:compile
+      #- docker-compose -f jhipster-sample-app/dev.yml up
+      #- docker-compose -f jhipster-sample-microservices/prod/prod.yml up
+      - docker build --build-arg build_without="development test" --build-arg rails_env="development" -t $REPOSITORY_URI:latest .
+      - docker container run --name usermgmtapp -v ~/latest:/src/main/docker/app -v ~/home/jhipster/ -p 8080:8080 -d -t 397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag
+     # - docker build -t $REPOSITORY_URI:latest .
+     # - docker container run --name user-mgmt-app -v ~/latest:/src/main/docker/app -v ~/home/jhipster/ -p 8080:8080 -d -t 397469231854.dkr.ecr.ap-southeast-1.amazonaws.com/kst-stag
+      - ./mvnw package -Pprod docker:build
+     # - ./mvnw package -Pprod  jib:dockerBuild
+      #- docker build -t $REPOSITORY_URI:latest .
+      - mvn package -Pdocker
+      - docker container ps
+      - ls -l
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - $(aws ecr get-login --no-include-email --region ap-southeast-1)
+      #- docker push $REPOSITORY_URI:latest
+      - mvn package
+      - printf '{"ImageURI":"%s"}' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+  type: Json
+  files:
+    - taskdef.json
+    - imagedefinitions.json
