@@ -1,12 +1,12 @@
 version: '2'
 services:
   usermgmtapp-mysql:
-    image: mysql:8.0.19
-    # volumes:
-    #     - ~/volumes/jhipster/usermgmtapp/mysql/:/var/lib/mysql/
+    image: mysql:8.0.18
+    volumes:
+      - ~/volumes/jhipster/userMgmtApp/mysql/:/var/lib/mysql/
     environment:
-      - MYSQL_USER=root
-      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_USER=admin
+      - MYSQL_ALLOW_EMPTY_PASSWORD=Keysight1
       - MYSQL_DATABASE=usermgmtapp
     ports:
       - 3306:3306
